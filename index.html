@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>LevelUp Quest v101.1</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('sw.js')
+            .then(reg => console.log('Service Worker registered!', reg))
+            .catch(err => console.log('Service Worker failed:', err));
+        });
+      }
+    </script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <h1>LevelUp Quest ✏️</h1>
+
+    <div id="portal-screen" class="screen card">
+        <h3>👋 Who is playing today?</h3>
+        <div id="student-list" class="list-container"></div>
+        <button class="text-btn" onclick="SecurityEngine.showPinGate()">🔒 Parent Mode</button>
+    </div>
+
+    <div id="pin-screen" class="screen card hidden">
+        <h3>Parent Access</h3>
+        <p id="pin-msg">Enter PIN</p>
+        <div class="pin-container">
+            <input id="pinInput" type="password" placeholder="••••" autocomplete="off" inputmode="numeric">
+        </div>
+        <button onclick="SecurityEngine.handlePinSubmit()">Unlock</button>
+        <button class="secondary-btn" onclick="showScreen('portal-screen')">Cancel</button>
+    </div>
+
+    <div id="parent-screen" class="screen card hidden">
+        <div class="header-row">
+            <h2>Parent Dashboard</h2>
+            <button class="icon-btn" onclick="location.reload()">✖️</button>
+        </div>
+
+        <div class="manager-card" style="border-left: 5px solid var(--purple);">
+            <h4>🔑 License & Upgrades</h4>
+            <p id="current-license-display" style="color:var(--text-light); margin-bottom:10px;">Checking License...</p>
+            
+            <div class="button-group">
+                <button onclick="LicenseEngine.applyUpgrade('STANDARD_PACK')" class="sm-btn" style="background:var(--secondary);">
+                    +5 Pack ($4.99)
+                </button>
+                <button onclick="LicenseEngine.applyUpgrade('EDUCATOR')" class="sm-btn" style="background:var(--gold); color:#333;">
+                    🎓 Educator Pro
+                </button>
+            </div>
+            
+            <div style="margin-top:10px;">
+                <small style="cursor:pointer; opacity:0.7;" onclick="alert('This would open a prompt to enter a redeemable code.')">Have a license code?</small>
+            </div>
+        </div>
+
+        <div class="manager-card" style="text-align: center;">
+            <h4>📊 Performance Analytics</h4>
+            <div id="leaderboard-container"></div>
+            
+            <div class="chart-container">
+                <div class="chart-box">
+                    <h4 id="accuracy-title" class="chart-title">Accuracy</h4>
+                    <p class="chart-subtitle">Consistency of correct answers over the last 5 sessions (Higher is better).</p>
+                    <canvas id="accuracyChart" width="500" height="150"></canvas>
+                </div>
+                <div class="chart-box">
+                    <h4 id="speed-title" class="chart-title">Speed</h4>
+                    <p class="chart-subtitle">Average time (in seconds) to complete a word (Lower is faster).</p>
+                    <canvas id="speedChart" width="500" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="manager-card">
+            <h4>🔍 Curriculum</h4>
+            <input type="text" id="parent-search" placeholder="Search lists..." oninput="CurriculumEngine.renderManager()">
+            <div id="student-management-list"></div>
+        </div>
+
+        <div class="manager-card">
+            <h4>➕ New Student</h4>
+            <div class="control-row">
+                <input type="text" id="new-student-name" placeholder="Name">
+                <button onclick="CurriculumEngine.addNewStudent()" class="sm-btn">Add</button>
+            </div>
+        </div>
+
+        <div class="manager-card">
+            <h4>⚙️ Settings</h4>
+            <div class="setting-block">
+                <label>🎤 Voice Type</label>
+                <div class="control-row">
+                    <select id="voice-picker" onchange="GameplayEngine.testVoiceSelection()"></select>
+                    <button onclick="GameplayEngine.testVoiceSelection()" class="sm-btn">Test</button>
+                </div>
+            </div>
+            <hr class="divider">
+            <div class="setting-block">
+                <label>🔒 Parent PIN</label>
+                <div class="control-row">
+                    <input id="newPin" type="password" placeholder="New PIN" style="width: 140px;">
+                    <button onclick="SecurityEngine.setNewPin()" class="sm-btn">Update</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="manager-card recovery-block">
+            <h4 class="mt-0">📦 Data</h4>
+            <div class="button-group">
+                <button onclick="CurriculumEngine.exportData()" class="action-btn success">📥 Backup</button>
+                <button onclick="CurriculumEngine.importData()" class="action-btn info">📤 Restore</button>
+            </div>
+            <input type="file" id="importFile" accept=".json" class="hidden-input">
+            <input type="file" id="importListFile" accept=".json" class="hidden-input" onchange="CurriculumEngine.processListImport(this)">
+        </div>
+    </div>
+
+    <div id="student-portal" class="screen card hidden">
+        <div id="portal-stats">
+            <div id="portal-level-badge" class="xp-display">Level 1</div>
+            <div class="stats-row">
+                <div id="streak-display" class="streak-badge">🔥 0 Days</div>
+                <div id="goal-streak-display" class="goal-streak-badge">🏅 0 Weeks</div>
+            </div>
+        </div>
+        <div class="bar-container"><div id="xp-bar" class="bar-fill gold-fill"></div></div>
+        
+        <div id="goal-section">
+            <div class="flex-between">
+                <strong id="goal-text">Quest Goal</strong>
+                <small>Weekly Progress</small>
+            </div>
+            <div class="bar-container"><div id="goal-bar" class="bar-fill purple-fill"></div></div>
+        </div>
+
+        <h2 id="portal-welcome"></h2>
+        <div class="buddy-preview">
+            <div id="buddy-emoji">🦁</div>
+        </div>
+        
+        <div class="mode-toggle-container">
+            <label style="font-weight:bold; color:var(--text-light); font-size:0.9rem;">SELECT GAME MODE:</label>
+            <div class="toggle-row">
+                <button id="mode-spell" class="mode-btn active" onclick="selectGameMode('spelling')">✏️ Spelling</button>
+                <button id="mode-memory" class="mode-btn" onclick="selectGameMode('memory')">🎴 Memory</button>
+            </div>
+        </div>
+
+        <div id="student-lists-container"></div>
+        <button class="secondary-btn mt-20" onclick="location.reload()">⬅️ Switch Profile</button>
+    </div>
+
+    <div id="game-screen" class="screen card hidden">
+        <div id="stop-overlay" class="hidden">
+            <div class="overlay-content">
+                <h1>PAUSED</h1>
+                <button onclick="GameplayEngine.togglePause()" class="lg-btn">RESUME</button>
+            </div>
+        </div>
+        
+        <div class="game-header">
+            <button class="icon-btn exit-btn" onclick="GameplayEngine.exitGame()">🏠</button>
+            <div id="progress-text">1/10</div>
+            <button class="icon-btn stop-btn" onclick="GameplayEngine.togglePause()">⏸️</button>
+        </div>
+
+        <div class="buddy-game-container">
+            <div id="speech-bubble" class="speech-bubble hidden"></div>
+            <div id="buddy-emoji-game">🦁</div>
+        </div>
+
+        <div class="input-area">
+            <div id="feedback-msg">Ready?</div>
+            <input type="text" id="spelling-input" placeholder="Type here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            <button id="check-spelling-btn" onclick="GameplayEngine.checkSpelling()">CHECK</button>
+        </div>
+        
+        <div class="game-controls">
+            <button onclick="GameplayEngine.repeatWord()" class="control-btn">🔈 Hear It</button>
+            <button onclick="GameplayEngine.playPhonetics()" class="control-btn info-btn">🗣️ Phonics</button>
+        </div>
+
+        <div class="help-container">
+            <button id="help-btn" onclick="showHelp()" class="hidden help-btn">❓ Help Me</button>
+        </div>
+    </div>
+
+    <div id="memory-screen" class="screen card hidden">
+        <div class="game-header">
+            <button class="icon-btn exit-btn" onclick="MemoryEngine.exitGame()">🏠</button>
+            <div id="memory-progress" style="font-weight:800; font-size:1.2rem; color:var(--text-light);">Matches: 0</div>
+            <button class="icon-btn stop-btn" onclick="MemoryEngine.restart()">🔄</button>
+        </div>
+
+        <div id="memory-target-container" class="hidden">
+            <div class="target-label">🎯 Find this word:</div>
+            <div id="memory-target-text"></div>
+        </div>
+
+        <div class="medal-cabinet">
+            <div class="medal-row">
+                <div class="medal-item">🥇 <span id="mem-gold">0</span></div>
+                <div class="medal-item">🥈 <span id="mem-silver">0</span></div>
+                <div class="medal-item">🥉 <span id="mem-bronze">0</span></div>
+            </div>
+            <div class="medal-legend">
+                <small>Total Medals Earned</small>
+            </div>
+        </div>
+
+        <div id="memory-grid" class="memory-board"></div>
+    </div>
+
+    <div id="win-screen" class="screen card hidden">
+        <h1 class="glow-text">🌟 QUEST COMPLETE! 🌟</h1>
+        <div class="ceremony-grid">
+            <div class="medal">🥇 <span id="win-gold">0</span></div>
+            <div class="medal">🥈 <span id="win-silver">0</span></div>
+            <div class="medal">🥉 <span id="win-bronze">0</span></div>
+        </div>
+        <button onclick="location.reload()" class="lg-btn">Return to Portal</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
