@@ -1,5 +1,5 @@
 /* =========================================
-   LEVELUP QUEST v101.1 - STANDARDIZED LICENSE UPDATE
+   LEVELUP QUEST v101.2 - INPUT & LICENSE FIX
    ========================================= */
 
 // --- GLOBAL STATE & SAFE INIT ---
@@ -301,10 +301,17 @@ const LicenseEngine = {
             console.error("Invalid License Tier");
             return;
         }
-        AppState.data.config.licenseType = type;
-        save();
-        showAlertModal(`🎉 Upgrade Successful!<br>You are now on the <strong>${this.tiers[type].label}</strong>.`);
-        CurriculumEngine.renderManager(); // Refresh UI to reflect new limits
+
+        // [MODIFICATION] Add Mock Payment Prompt
+        // This simulates the gap where the Store API would intervene
+        const isConfirmed = confirm(`Simulate purchase for ${this.tiers[type].label}?`);
+        
+        if (isConfirmed) {
+            AppState.data.config.licenseType = type;
+            save();
+            showAlertModal(`🎉 Upgrade Successful!<br>You are now on the <strong>${this.tiers[type].label}</strong>.`);
+            CurriculumEngine.renderManager(); // Refresh UI to reflect new limits
+        }
     }
 };
 
@@ -1612,7 +1619,7 @@ const AnalyticsEngine = {
 };
 
 // --- INIT ---
-document.getElementById('spelling-input').addEventListener('keypress', (e) => {
+document.getElementById('spelling-input').addEventListener('keydown', (e) => { // CHANGED TO KEYDOWN
     if (e.key === 'Enter') GameplayEngine.checkSpelling();
 });
 if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = () => GameplayEngine.setupVoices();
@@ -1626,7 +1633,7 @@ window.onload = () => {
         pinIn.addEventListener('input', (e) => {
             e.target.style.width = ((e.target.value.length * 40) + 60) + 'px';
         });
-        pinIn.addEventListener('keypress', (e) => {
+        pinIn.addEventListener('keydown', (e) => { // CHANGED TO KEYDOWN
             if (e.key === 'Enter') SecurityEngine.handlePinSubmit();
         });
     }
