@@ -2,7 +2,7 @@
   "name": "LevelUp Quest: Spelling & Logic",
   "short_name": "LevelUp Quest",
   "id": "/index.html",
-  "start_url": "./index.html",
+  "start_url": "/index.html",
   "display": "standalone",
   "background_color": "#F0F4F8",
   "theme_color": "#FF6B6B",
