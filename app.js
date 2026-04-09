@@ -144,6 +144,25 @@ function save() {
     localStorage.setItem('spellingBuddyData', JSON.stringify(AppState.data));
 }
 
+// Escape HTML entities to prevent XSS when injecting user data into innerHTML
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// Reusable AudioContext to prevent context leak on repeated fanfare calls
+let _audioCtx = null;
+function getAudioContext() {
+    if (!_audioCtx || _audioCtx.state === 'closed') {
+        _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    return _audioCtx;
+}
+
 function showScreen(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden'));
     const el = document.getElementById(id);
@@ -304,14 +323,12 @@ const LicenseEngine = {
 
         // [MODIFICATION] Add Mock Payment Prompt
         // This simulates the gap where the Store API would intervene
-        const isConfirmed = confirm(`Simulate purchase for ${this.tiers[type].label}?`);
-        
-        if (isConfirmed) {
+        showConfirmModal(`Simulate purchase for ${this.tiers[type].label}?`, () => {
             AppState.data.config.licenseType = type;
             save();
             showAlertModal(`🎉 Upgrade Successful!<br>You are now on the <strong>${this.tiers[type].label}</strong>.`);
             CurriculumEngine.renderManager(); // Refresh UI to reflect new limits
-        }
+        });
     }
 };
 
@@ -396,19 +413,6 @@ class SpellingGameLogic {
         this.wrongCount = 0;
         this.resetTimer();
         return this.getCurrentWord();
-    }
-}
-
-// --- PORTAL UI LOGIC ---
-function selectGameMode(mode) {
-    AppState.activeGameMode = mode;
-    const btnSpell = document.getElementById('mode-spell');
-    const btnMem = document.getElementById('mode-memory');
-    if (btnSpell) btnSpell.classList.toggle('active', mode === 'spelling');
-    if (btnMem) btnMem.classList.toggle('active', mode === 'memory');
-
-    if (AppState.currentStudent) {
-        CurriculumEngine.openDashboard(AppState.currentStudent);
     }
 }
 
@@ -534,7 +538,7 @@ const CurriculumEngine = {
             const b = document.createElement('button');
             b.className = "student-btn";
             b.style = `background: ${s.color}; box-shadow: 0 4px 0 ${adjustColor(s.color, -20)};`;
-            b.innerHTML = `<span style="font-size: 2rem;">${s.emoji}</span> <div><strong>${n}</strong><br><small style="font-size:0.8rem; opacity:0.9;">Level ${Math.floor(Math.sqrt((s.xp||0)/100))+1} ${s.role}</small></div>`;
+            b.innerHTML = `<span style="font-size: 2rem;">${escHtml(s.emoji)}</span> <div><strong>${escHtml(n)}</strong><br><small style="font-size:0.8rem; opacity:0.9;">Level ${Math.floor(Math.sqrt((s.xp||0)/100))+1} ${escHtml(s.role)}</small></div>`;
 
             b.onclick = () => {
                 try {
@@ -576,7 +580,7 @@ const CurriculumEngine = {
         safeSetText('portal-bronze', m.bronze);
 
         safeSetText('streak-display', `🔥 ${s.streak || 0} Days`);
-        safeSetText('goal-streak-display', `🏅 ${AnalyticsEngine.calculateGoalStreak(name)} Weeks`);
+        safeSetText('goal-streak-display', `🏅 ${AnalyticsEngine.calculateGoalStreak(name)} Goals`);
 
         const goalPerc = Math.min(((s.weeklyProgress || 0) / (s.weeklyGoal || 10)) * 100, 100);
         safeSetStyle('goal-bar', 'width', goalPerc + "%");
@@ -655,29 +659,30 @@ const CurriculumEngine = {
 
             const card = document.createElement('div');
             card.className = "manager-card";
-            card.innerHTML = `<h3>👤 ${n}
-                <button onclick="CurriculumEngine.deleteStudent('${n}')" class="sm-btn" style="background:var(--danger); float:right; margin-left:5px;">🗑️</button>
-                <button onclick="CurriculumEngine.resetStudent('${n}')" class="sm-btn" style="background:var(--accent); color:#333; float:right;">🔄</button>
+            const nJson = JSON.stringify(n);
+            card.innerHTML = `<h3>👤 ${escHtml(n)}
+                <button onclick="CurriculumEngine.deleteStudent(${nJson})" class="sm-btn" style="background:var(--danger); float:right; margin-left:5px;">🗑️</button>
+                <button onclick="CurriculumEngine.resetStudent(${nJson})" class="sm-btn" style="background:var(--accent); color:#333; float:right;">🔄</button>
             </h3>
                 <div class="control-row">
-                    <select onchange="CurriculumEngine.updateStudentProp('${n}','emoji',this.value)">${EMOJIS.map(e=>`<option value="${e.icon}" ${s.emoji===e.icon?'selected':''}>${e.icon} ${e.label}</option>`).join('')}</select>
-                    <select onchange="CurriculumEngine.updateStudentProp('${n}','color',this.value)">${Object.keys(COLORS).map(name => `<option value="${COLORS[name]}" ${s.color===COLORS[name]?'selected':''}>${name}</option>`).join('')}</select>
+                    <select onchange="CurriculumEngine.updateStudentProp(${nJson},'emoji',this.value)">${EMOJIS.map(e=>`<option value="${escHtml(e.icon)}" ${s.emoji===e.icon?'selected':''}>${escHtml(e.icon)} ${escHtml(e.label)}</option>`).join('')}</select>
+                    <select onchange="CurriculumEngine.updateStudentProp(${nJson},'color',this.value)">${Object.keys(COLORS).map(name => `<option value="${escHtml(COLORS[name])}" ${s.color===COLORS[name]?'selected':''}>${escHtml(name)}</option>`).join('')}</select>
                 </div>
-                
+
                 <div class="control-row" style="margin-top:8px; border-bottom:1px solid rgba(0,0,0,0.05); padding-bottom:8px;">
                     <span style="font-size:0.9rem;"><strong>Medals:</strong> 🥇${m.gold} 🥈${m.silver} 🥉${m.bronze}</span>
-                    <button onclick="CurriculumEngine.resetMedals('${n}')" class="sm-btn secondary-btn" style="padding:4px 10px; font-size:0.8rem;">Reset</button>
+                    <button onclick="CurriculumEngine.resetMedals(${nJson})" class="sm-btn secondary-btn" style="padding:4px 10px; font-size:0.8rem;">Reset</button>
                 </div>
 
                 <div class="control-row goal-row">
                     <strong>Weekly Goal:</strong>
-                    <input type="number" value="${s.weeklyGoal||10}" onchange="CurriculumEngine.updateStudentProp('${n}','weeklyGoal',this.value)" class="goal-input">
+                    <input type="number" value="${s.weeklyGoal||10}" onchange="CurriculumEngine.updateStudentProp(${nJson},'weeklyGoal',this.value)" class="goal-input">
                 </div>
-                <div id="goal-history-${n}"></div><div id="lists-for-${n}"></div>
+                <div id="goal-history-${escHtml(n)}"></div><div id="lists-for-${escHtml(n)}"></div>
                 <div style="margin-top:15px; border-top:1px solid #ddd; padding-top:15px; display:flex; gap:5px;">
-                    <input id="new-ln-${n}" placeholder="List Name">
-                    <button onclick="CurriculumEngine.createNewList('${n}')" class="sm-btn">Add</button>
-                    <button onclick="CurriculumEngine.initiateImport('${n}')" class="sm-btn" style="background:#0984e3;">📥 Import</button>
+                    <input id="new-ln-${escHtml(n)}" placeholder="List Name">
+                    <button onclick="CurriculumEngine.createNewList(${nJson})" class="sm-btn">Add</button>
+                    <button onclick="CurriculumEngine.initiateImport(${nJson})" class="sm-btn" style="background:#0984e3;">📥 Import</button>
                 </div>`;
             list.appendChild(card);
             this.renderListsInParent(n, q);
@@ -691,20 +696,22 @@ const CurriculumEngine = {
         const cont = document.getElementById(`lists-for-${n}`);
         if (!cont) return;
 
+        const nJson = JSON.stringify(n);
         Object.keys(s.lists || {}).forEach(ln => {
             const words = s.lists[ln].join(', ');
             if (q && !words.includes(q)) return;
             const isVis = s.listConfigs?.[ln]?.visible !== false;
             const div = document.createElement('div');
             div.className = `list-entry ${!isVis?'archived':''}`;
-            div.innerHTML = `<div class="flex-between"><strong>📜 ${ln}</strong> 
+            const lnJson = JSON.stringify(ln);
+            div.innerHTML = `<div class="flex-between"><strong>📜 ${escHtml(ln)}</strong>
                 <div>
-                <button onclick="CurriculumEngine.toggleArch('${n}','${ln}')" class="sm-btn secondary-btn" style="padding:4px 8px;">${isVis?'Hide':'Show'}</button>
-                <button onclick="CurriculumEngine.exportList('${n}','${ln}')" class="sm-btn" style="background:#00b894; padding:4px 8px;">📤</button>
-                <button onclick="CurriculumEngine.deleteList('${n}','${ln}')" class="sm-btn" style="background:var(--danger); padding:4px 8px;">✖</button>
+                <button onclick="CurriculumEngine.toggleArch(${nJson},${lnJson})" class="sm-btn secondary-btn" style="padding:4px 8px;">${isVis?'Hide':'Show'}</button>
+                <button onclick="CurriculumEngine.exportList(${nJson},${lnJson})" class="sm-btn" style="background:#00b894; padding:4px 8px;">📤</button>
+                <button onclick="CurriculumEngine.deleteList(${nJson},${lnJson})" class="sm-btn" style="background:var(--danger); padding:4px 8px;">✖</button>
                 </div></div>
-                <textarea onchange="CurriculumEngine.updateWords('${n}','${ln}',this.value)" style="width:100%; height:60px; margin:5px 0;">${words}</textarea>
-                <textarea onchange="CurriculumEngine.updateSents('${n}','${ln}',this.value)" placeholder="Sentences" style="width:100%; height:60px;">${(s.sentences?.[ln] || []).join(', ')}</textarea>`;
+                <textarea onchange="CurriculumEngine.updateWords(${nJson},${lnJson},this.value)" style="width:100%; height:60px; margin:5px 0;">${escHtml(words)}</textarea>
+                <textarea onchange="CurriculumEngine.updateSents(${nJson},${lnJson},this.value)" placeholder="Sentences" style="width:100%; height:60px;">${escHtml((s.sentences?.[ln] || []).join(', '))}</textarea>`;
             cont.appendChild(div);
         });
     },
@@ -717,6 +724,10 @@ const CurriculumEngine = {
         const nInput = document.getElementById('new-student-name');
         const n = nInput ? nInput.value.trim() : "";
         if (n) {
+            if (AppState.data.students[n]) {
+                showAlertModal(`⚠️ A student named "${escHtml(n)}" already exists.`);
+                return;
+            }
             AppState.data.students[n] = {
                 lists: {},
                 xp: 0,
@@ -746,7 +757,7 @@ const CurriculumEngine = {
     },
 
     updateStudentProp(n, p, v) {
-        AppState.data.students[n][p] = v;
+        AppState.data.students[n][p] = (p === 'weeklyGoal') ? Number(v) : v;
         save();
         if (p === 'color' || p === 'emoji') this.renderPortal();
     },
@@ -777,7 +788,7 @@ const CurriculumEngine = {
     },
     toggleArch(n, ln) {
         if (!AppState.data.students[n].listConfigs) AppState.data.students[n].listConfigs = {};
-        if (!AppState.data.students[n].listConfigs[ln]) AppState.data.students[n].listConfigs[ln] = {};
+        if (!AppState.data.students[n].listConfigs[ln]) AppState.data.students[n].listConfigs[ln] = { visible: true };
         AppState.data.students[n].listConfigs[ln].visible = !AppState.data.students[n].listConfigs[ln].visible;
         save();
         this.renderManager();
@@ -837,8 +848,47 @@ const CurriculumEngine = {
         dl.click();
         dl.remove();
     },
+    exportList(n, ln) {
+        const s = AppState.data.students[n];
+        const payload = {
+            type: "levelup-list",
+            name: ln,
+            words: s.lists[ln] || [],
+            sentences: s.sentences?.[ln] || []
+        };
+        const dataStr = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(payload));
+        const dl = document.createElement('a');
+        dl.setAttribute("href", dataStr);
+        dl.setAttribute("download", `${ln}.json`);
+        document.body.appendChild(dl);
+        dl.click();
+        dl.remove();
+    },
     importData() {
         document.getElementById('importFile').click();
+    },
+    processFullImport(input) {
+        if (!input.files[0]) return;
+        const r = new FileReader();
+        r.onload = (e) => {
+            try {
+                const data = JSON.parse(e.target.result);
+                if (!data.students || !data.config) {
+                    showAlertModal("❌ Invalid backup file.");
+                    return;
+                }
+                showConfirmModal("⚠️ This will replace all current data. Continue?", () => {
+                    AppState.data = data;
+                    normalizeData();
+                    CurriculumEngine.renderPortal();
+                    showAlertModal("✅ Data restored successfully!");
+                });
+            } catch {
+                showAlertModal("❌ File could not be read.");
+            }
+            input.value = "";
+        };
+        r.readAsText(input.files[0]);
     },
     initiateImport(n) {
         AppState.pendingImport = n;
@@ -854,6 +904,7 @@ const CurriculumEngine = {
                     showAlertModal("❌ Invalid Quest List.");
                     return;
                 }
+                if (!LicenseEngine.canProceed('add_list', AppState.pendingImport)) return;
                 const s = AppState.data.students[AppState.pendingImport];
                 s.lists[data.name] = data.words;
                 if (data.sentences) s.sentences[data.name] = data.sentences;
@@ -875,6 +926,16 @@ const CurriculumEngine = {
         showAlertModal(`✅ Quest "${data.name}" imported successfully!`);
     }
 };
+
+function showHelp() {
+    const w = GameplayEngine.logic && GameplayEngine.logic.getCurrentWord();
+    if (!w) return;
+    const bubble = document.getElementById('speech-bubble');
+    if (bubble) {
+        bubble.innerText = w.s ? `"${w.s}"` : `Starts with: ${w.w[0].toUpperCase()}...`;
+        bubble.classList.remove('hidden');
+    }
+}
 
 // --- PORTAL UI LOGIC (Global scope for button access) ---
 window.selectGameMode = function(mode) {
@@ -1124,7 +1185,7 @@ const GameplayEngine = {
         });
     },
     playVictoryFanfare() {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = getAudioContext();
         [261, 329, 392, 523].forEach((f, i) => {
             const osc = ctx.createOscillator();
             const g = ctx.createGain();
@@ -1536,7 +1597,7 @@ const AnalyticsEngine = {
             acc = [];
         Object.values(s.history || {}).forEach(d => {
             if (d.times.length) spd.push(d.times.reduce((a, b) => a + b, 0) / d.times.length);
-            if (d.missed !== undefined) acc.push(100 - (d.missed * 10));
+            if (d.missed !== undefined) acc.push(Math.max(0, 100 - (d.missed * 10)));
         });
         safeSetText('speed-title', `${AppState.currentStudent}'s Speed`);
         safeSetText('accuracy-title', `${AppState.currentStudent}'s Accuracy`);

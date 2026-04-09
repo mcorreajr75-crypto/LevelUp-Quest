@@ -1,8 +1,8 @@
 {
   "name": "LevelUp Quest: Spelling & Logic",
   "short_name": "LevelUp Quest",
-  "id": "/index.html",
-  "start_url": "/index.html",
+  "id": "./index.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#F0F4F8",
   "theme_color": "#FF6B6B",
@@ -32,18 +32,18 @@
   ],
   "screenshots": [
     {
-      "src": "screenshot-mobile.png",
+      "src": "screenshot-Launch.png",
       "sizes": "1080x1920",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Spelling Game Mobile View"
+      "label": "App Launch Screen"
     },
     {
-      "src": "screenshot-desktop.png",
-      "sizes": "1920x1080",
+      "src": "screenshot-Secure Pin.png",
+      "sizes": "1080x1920",
       "type": "image/png",
-      "form_factor": "wide",
-      "label": "Student Portal Dashboard"
+      "form_factor": "narrow",
+      "label": "Secure PIN Entry"
     }
   ],
   "shortcuts": [

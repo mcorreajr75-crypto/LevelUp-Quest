@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>LevelUp Quest v101.1</title>
+    <title>LevelUp Quest v101.2</title>
     
     <link rel="manifest" href="manifest.json">
     <script>
@@ -64,7 +64,7 @@
             </div>
             
             <div style="margin-top:10px;">
-                <small style="cursor:pointer; opacity:0.7;" onclick="alert('This would open a prompt to enter a redeemable code.')">Have a license code?</small>
+                <small style="cursor:pointer; opacity:0.7;" onclick="showAlertModal('License code redemption coming soon!')">Have a license code?</small>
             </div>
         </div>
 
@@ -125,7 +125,7 @@
                 <button onclick="CurriculumEngine.exportData()" class="action-btn success">📥 Backup</button>
                 <button onclick="CurriculumEngine.importData()" class="action-btn info">📤 Restore</button>
             </div>
-            <input type="file" id="importFile" accept=".json" class="hidden-input">
+            <input type="file" id="importFile" accept=".json" class="hidden-input" onchange="CurriculumEngine.processFullImport(this)">
             <input type="file" id="importListFile" accept=".json" class="hidden-input" onchange="CurriculumEngine.processListImport(this)">
         </div>
     </div>
@@ -135,7 +135,7 @@
             <div id="portal-level-badge" class="xp-display">Level 1</div>
             <div class="stats-row">
                 <div id="streak-display" class="streak-badge">🔥 0 Days</div>
-                <div id="goal-streak-display" class="goal-streak-badge">🏅 0 Weeks</div>
+                <div id="goal-streak-display" class="goal-streak-badge">🏅 0 Goals</div>
             </div>
         </div>
         <div class="bar-container"><div id="xp-bar" class="bar-fill gold-fill"></div></div>
