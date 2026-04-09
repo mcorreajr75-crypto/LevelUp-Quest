@@ -154,6 +154,13 @@ function escHtml(str) {
         .replace(/'/g, '&#39;');
 }
 
+// Produce a JSON string safe for use inside an HTML double-quoted attribute.
+// JSON.stringify wraps values in " which collides with onclick="...".
+// Replacing " with &quot; lets the HTML parser decode it back before executing JS.
+function jsonAttr(val) {
+    return JSON.stringify(val).replace(/"/g, '&quot;');
+}
+
 // Reusable AudioContext to prevent context leak on repeated fanfare calls
 let _audioCtx = null;
 function getAudioContext() {
@@ -178,7 +185,7 @@ function showScreen(id) {
 function adjustColor(color, amount) {
     if (!color) return "#cccccc";
     if (!/^#([0-9A-F]{3}){1,2}$/i.test(color)) return color;
-    return '#' + color.replace(/^#/, '').replace(/../g, color => ('0' + Math.min(255, Math.max(0, parseInt(color, 16) + amount)).toString(16)).substr(-2));
+    return '#' + color.replace(/^#/, '').replace(/../g, color => ('0' + Math.min(255, Math.max(0, parseInt(color, 16) + amount)).toString(16)).slice(-2));
 }
 
 function initTheme() {
@@ -659,30 +666,30 @@ const CurriculumEngine = {
 
             const card = document.createElement('div');
             card.className = "manager-card";
-            const nJson = JSON.stringify(n);
+            const nAttr = jsonAttr(n);
             card.innerHTML = `<h3>👤 ${escHtml(n)}
-                <button onclick="CurriculumEngine.deleteStudent(${nJson})" class="sm-btn" style="background:var(--danger); float:right; margin-left:5px;">🗑️</button>
-                <button onclick="CurriculumEngine.resetStudent(${nJson})" class="sm-btn" style="background:var(--accent); color:#333; float:right;">🔄</button>
+                <button onclick="CurriculumEngine.deleteStudent(${nAttr})" class="sm-btn" style="background:var(--danger); float:right; margin-left:5px;">🗑️</button>
+                <button onclick="CurriculumEngine.resetStudent(${nAttr})" class="sm-btn" style="background:var(--accent); color:#333; float:right;">🔄</button>
             </h3>
                 <div class="control-row">
-                    <select onchange="CurriculumEngine.updateStudentProp(${nJson},'emoji',this.value)">${EMOJIS.map(e=>`<option value="${escHtml(e.icon)}" ${s.emoji===e.icon?'selected':''}>${escHtml(e.icon)} ${escHtml(e.label)}</option>`).join('')}</select>
-                    <select onchange="CurriculumEngine.updateStudentProp(${nJson},'color',this.value)">${Object.keys(COLORS).map(name => `<option value="${escHtml(COLORS[name])}" ${s.color===COLORS[name]?'selected':''}>${escHtml(name)}</option>`).join('')}</select>
+                    <select onchange="CurriculumEngine.updateStudentProp(${nAttr},'emoji',this.value)">${EMOJIS.map(e=>`<option value="${escHtml(e.icon)}" ${s.emoji===e.icon?'selected':''}>${escHtml(e.icon)} ${escHtml(e.label)}</option>`).join('')}</select>
+                    <select onchange="CurriculumEngine.updateStudentProp(${nAttr},'color',this.value)">${Object.keys(COLORS).map(name => `<option value="${escHtml(COLORS[name])}" ${s.color===COLORS[name]?'selected':''}>${escHtml(name)}</option>`).join('')}</select>
                 </div>
 
                 <div class="control-row" style="margin-top:8px; border-bottom:1px solid rgba(0,0,0,0.05); padding-bottom:8px;">
                     <span style="font-size:0.9rem;"><strong>Medals:</strong> 🥇${m.gold} 🥈${m.silver} 🥉${m.bronze}</span>
-                    <button onclick="CurriculumEngine.resetMedals(${nJson})" class="sm-btn secondary-btn" style="padding:4px 10px; font-size:0.8rem;">Reset</button>
+                    <button onclick="CurriculumEngine.resetMedals(${nAttr})" class="sm-btn secondary-btn" style="padding:4px 10px; font-size:0.8rem;">Reset</button>
                 </div>
 
                 <div class="control-row goal-row">
                     <strong>Weekly Goal:</strong>
-                    <input type="number" value="${s.weeklyGoal||10}" onchange="CurriculumEngine.updateStudentProp(${nJson},'weeklyGoal',this.value)" class="goal-input">
+                    <input type="number" value="${s.weeklyGoal||10}" onchange="CurriculumEngine.updateStudentProp(${nAttr},'weeklyGoal',this.value)" class="goal-input">
                 </div>
                 <div id="goal-history-${escHtml(n)}"></div><div id="lists-for-${escHtml(n)}"></div>
                 <div style="margin-top:15px; border-top:1px solid #ddd; padding-top:15px; display:flex; gap:5px;">
                     <input id="new-ln-${escHtml(n)}" placeholder="List Name">
-                    <button onclick="CurriculumEngine.createNewList(${nJson})" class="sm-btn">Add</button>
-                    <button onclick="CurriculumEngine.initiateImport(${nJson})" class="sm-btn" style="background:#0984e3;">📥 Import</button>
+                    <button onclick="CurriculumEngine.createNewList(${nAttr})" class="sm-btn">Add</button>
+                    <button onclick="CurriculumEngine.initiateImport(${nAttr})" class="sm-btn" style="background:#0984e3;">📥 Import</button>
                 </div>`;
             list.appendChild(card);
             this.renderListsInParent(n, q);
@@ -696,22 +703,22 @@ const CurriculumEngine = {
         const cont = document.getElementById(`lists-for-${n}`);
         if (!cont) return;
 
-        const nJson = JSON.stringify(n);
+        const nAttr = jsonAttr(n);
         Object.keys(s.lists || {}).forEach(ln => {
             const words = s.lists[ln].join(', ');
             if (q && !words.includes(q)) return;
             const isVis = s.listConfigs?.[ln]?.visible !== false;
             const div = document.createElement('div');
             div.className = `list-entry ${!isVis?'archived':''}`;
-            const lnJson = JSON.stringify(ln);
+            const lnAttr = jsonAttr(ln);
             div.innerHTML = `<div class="flex-between"><strong>📜 ${escHtml(ln)}</strong>
                 <div>
-                <button onclick="CurriculumEngine.toggleArch(${nJson},${lnJson})" class="sm-btn secondary-btn" style="padding:4px 8px;">${isVis?'Hide':'Show'}</button>
-                <button onclick="CurriculumEngine.exportList(${nJson},${lnJson})" class="sm-btn" style="background:#00b894; padding:4px 8px;">📤</button>
-                <button onclick="CurriculumEngine.deleteList(${nJson},${lnJson})" class="sm-btn" style="background:var(--danger); padding:4px 8px;">✖</button>
+                <button onclick="CurriculumEngine.toggleArch(${nAttr},${lnAttr})" class="sm-btn secondary-btn" style="padding:4px 8px;">${isVis?'Hide':'Show'}</button>
+                <button onclick="CurriculumEngine.exportList(${nAttr},${lnAttr})" class="sm-btn" style="background:#00b894; padding:4px 8px;">📤</button>
+                <button onclick="CurriculumEngine.deleteList(${nAttr},${lnAttr})" class="sm-btn" style="background:var(--danger); padding:4px 8px;">✖</button>
                 </div></div>
-                <textarea onchange="CurriculumEngine.updateWords(${nJson},${lnJson},this.value)" style="width:100%; height:60px; margin:5px 0;">${escHtml(words)}</textarea>
-                <textarea onchange="CurriculumEngine.updateSents(${nJson},${lnJson},this.value)" placeholder="Sentences" style="width:100%; height:60px;">${escHtml((s.sentences?.[ln] || []).join(', '))}</textarea>`;
+                <textarea onchange="CurriculumEngine.updateWords(${nAttr},${lnAttr},this.value)" style="width:100%; height:60px; margin:5px 0;">${escHtml(words)}</textarea>
+                <textarea onchange="CurriculumEngine.updateSents(${nAttr},${lnAttr},this.value)" placeholder="Sentences" style="width:100%; height:60px;">${escHtml((s.sentences?.[ln] || []).join(', '))}</textarea>`;
             cont.appendChild(div);
         });
     },
